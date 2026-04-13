@@ -1,0 +1,28 @@
+# Coolify Configuration
+# Bu dosya Coolify'nin projeyi otomatik tanıması için kullanılır
+
+services:
+  backend:
+    type: dockerfile
+    dockerfile: backend/Dockerfile
+    build_context: backend
+    ports:
+      - "3001:3001"
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - PORT=3001
+      - NODE_ENV=production
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+  
+  frontend:
+    type: dockerfile
+    dockerfile: frontend/Dockerfile
+    build_context: frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
