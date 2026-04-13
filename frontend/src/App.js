@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import './App.css';
 
-const API_URL = process.env.REACT_APP_API_URL || '/api';
+const API_URL = 'http://qdyuinatjugc63hjew1r5r4b.194.62.52.109.sslip.io/api';
 
 function App() {
   const [licenses, setLicenses] = useState([]);
