@@ -11,7 +11,9 @@ import {
   Check, 
   X,
   AlertCircle,
-  TrendingUp
+  TrendingUp,
+  Search,
+  Filter
 } from 'lucide-react';
 import './App.css';
 
@@ -24,6 +26,10 @@ function App() {
   const [activeTab, setActiveTab] = useState('licenses');
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editLicense, setEditLicense] = useState({ id: null, customer_name: '', expires_at: '' });
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
   const [newLicense, setNewLicense] = useState({
     license_key: '',
     customer_name: '',
@@ -114,6 +120,44 @@ function App() {
     }
   };
 
+  const handleEditLicense = (license) => {
+    setEditLicense({
+      id: license.id,
+      customer_name: license.customer_name,
+      expires_at: new Date(license.expires_at).toISOString().split('T')[0]
+    });
+    setShowEditModal(true);
+  };
+
+  const handleUpdateLicense = async (e) => {
+    e.preventDefault();
+    try {
+      await axios.put(`${API_URL}/licenses/${editLicense.id}`, {
+        customer_name: editLicense.customer_name,
+        expires_at: editLicense.expires_at
+      });
+      setShowEditModal(false);
+      fetchLicenses();
+      fetchStats();
+    } catch (error) {
+      alert('Hata: ' + (error.response?.data?.error || 'Lisans güncellenemedi'));
+    }
+  };
+
+  const getFilteredLicenses = () => {
+    return licenses.filter(license => {
+      const matchesSearch = 
+        license.license_key.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        license.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (license.machine_id && license.machine_id.toLowerCase().includes(searchTerm.toLowerCase()));
+
+      if (statusFilter === 'active') return matchesSearch && license.is_active && !isExpired(license.expires_at);
+      if (statusFilter === 'inactive') return matchesSearch && !license.is_active;
+      if (statusFilter === 'expired') return matchesSearch && isExpired(license.expires_at);
+      return matchesSearch;
+    });
+  };
+
   const isExpired = (date) => {
     return new Date(date) < new Date();
   };
@@ -200,6 +244,24 @@ function App() {
               </button>
             </div>
 
+            <div className="filter-bar">
+              <div className="search-box">
+                <Search size={18} />
+                <input
+                  type="text"
+                  placeholder="Lisans, müşteri veya makine ID ara..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+              <div className="status-filters">
+                <button className={`filter-btn ${statusFilter === 'all' ? 'active' : ''}`} onClick={() => setStatusFilter('all')}>Tümü</button>
+                <button className={`filter-btn ${statusFilter === 'active' ? 'active' : ''}`} onClick={() => setStatusFilter('active')}>Aktif</button>
+                <button className={`filter-btn ${statusFilter === 'inactive' ? 'active' : ''}`} onClick={() => setStatusFilter('inactive')}>Pasif</button>
+                <button className={`filter-btn ${statusFilter === 'expired' ? 'active' : ''}`} onClick={() => setStatusFilter('expired')}>Süresi Dolmuş</button>
+              </div>
+            </div>
+
             <div className="table-container">
               <table className="table">
                 <thead>
@@ -214,7 +276,7 @@ function App() {
                   </tr>
                 </thead>
                 <tbody>
-                  {licenses.map((license) => (
+                  {getFilteredLicenses().map((license) => (
                     <tr key={license.id}>
                       <td className="license-key">{license.license_key}</td>
                       <td>{license.customer_name}</td>
@@ -230,6 +292,13 @@ function App() {
                       <td>{license.activation_count || 0}</td>
                       <td>
                         <div className="action-buttons">
+                          <button 
+                            className="btn-icon edit"
+                            onClick={() => handleEditLicense(license)}
+                            title="Düzenle"
+                          >
+                            <Edit size={16} />
+                          </button>
                           <button 
                             className="btn-icon"
                             onClick={() => handleToggleActive(license.id, license.is_active)}
@@ -288,6 +357,48 @@ function App() {
           </div>
         )}
       </div>
+
+      {showEditModal && (
+        <div className="modal-overlay" onClick={() => setShowEditModal(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Lisans Düzenle</h3>
+              <button className="btn-close" onClick={() => setShowEditModal(false)}>
+                <X size={20} />
+              </button>
+            </div>
+            <form onSubmit={handleUpdateLicense}>
+              <div className="form-group">
+                <label>Müşteri Adı</label>
+                <input
+                  type="text"
+                  value={editLicense.customer_name}
+                  onChange={(e) => setEditLicense({...editLicense, customer_name: e.target.value})}
+                  required
+                  placeholder="Ad Soyad"
+                />
+              </div>
+              <div className="form-group">
+                <label>Son Kullanma Tarihi</label>
+                <input
+                  type="date"
+                  value={editLicense.expires_at}
+                  onChange={(e) => setEditLicense({...editLicense, expires_at: e.target.value})}
+                  required
+                />
+              </div>
+              <div className="modal-actions">
+                <button type="button" className="btn-secondary" onClick={() => setShowEditModal(false)}>
+                  İptal
+                </button>
+                <button type="submit" className="btn-primary">
+                  Güncelle
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {showAddModal && (
         <div className="modal-overlay" onClick={() => setShowAddModal(false)}>
